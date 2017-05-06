@@ -1,0 +1,3 @@
+PHASE-BASED VIDEO MAGNIFICATION :   http://people.csail.mit.edu/nwadhwa/phase-video/
+
+opncv : http://docs.opencv.org/doc/tutorials/introduction/linux_install/linux_install.html

@@ -1,0 +1,192 @@
+/* Premier essai : transformée de Riesz par FFT */
+
+#include "pgm.h"
+#include "fft.h"
+#include <math.h>
+
+int main (int ac, char **av) {
+
+    // Variables images
+	unsigned char **im1=NULL, **res1=NULL, **res2=NULL, **res1_bis=NULL, **res2_bis=NULL, **result;
+	double **im1_double;
+	double **im1_reel, **im1_imag;
+	double **im2_reel, **im2_imag;
+	double **im3_reel, **im3_imag;
+	double **R1_reel, **R1_imag;
+	double **R2_reel, **R2_imag;
+	double **R1_reel_shift, **R1_imag_shift;
+	double **R2_reel_shift, **R2_imag_shift;
+	double **R1_reel_spatial, **R1_imag_spatial;
+	double **R2_reel_spatial, **R2_imag_spatial;
+	// En coordonnées sphériques
+	unsigned char **amplitude;
+	unsigned char **phase;
+	unsigned char **orientation;
+
+    // Nb de lignes et nb de colonnes
+	int nl,nc;
+	// Nb de lignes et nb de colonnes en puissance de 2
+	int nl2, nc2;
+
+	// Vérification du nombre de paramètres
+    if (ac < 7) {
+        printf("Usage : %s entree R1 R2 Amplitude Orientation Phase\n", av[0]); exit(1);
+    }
+    
+    // Lecture d'une image pgm dont le nom est passé sur la ligne de commande
+    im1 = lectureimagepgm(av[1],&nl,&nc);
+    if (im1==NULL) {
+        puts("Lecture image impossible");
+        exit(1);
+    }
+    nl2 = nl;
+    nc2 = nc;
+    
+	// Conversion de l'image de unsigned char** en double**
+    im1_double = imuchar2double(im1,nl,nc);
+
+    // Pour que nl et nc soient des puissances de 2
+    im1_reel = padimdforfft(im1_double,&nl2,&nc2);
+
+    // Allocation des images (nulles)
+    im1_imag = alloue_image_double(nl2,nc2); 
+    im2_reel = alloue_image_double(nl2,nc2); im2_imag = alloue_image_double(nl2,nc2);
+    im3_reel = alloue_image_double(nl2,nc2); im3_imag = alloue_image_double(nl2,nc2);
+    
+    R1_reel = alloue_image_double(nl2,nc2); R1_imag = alloue_image_double(nl2,nc2);
+    R2_reel = alloue_image_double(nl2,nc2); R2_imag = alloue_image_double(nl2,nc2);
+    
+    R1_reel_shift = alloue_image_double(nl2,nc2); R1_imag_shift = alloue_image_double(nl2,nc2);
+    R2_reel_shift = alloue_image_double(nl2,nc2); R2_imag_shift = alloue_image_double(nl2,nc2);
+    
+    R1_reel_spatial = alloue_image_double(nl2,nc2);
+    R1_imag_spatial = alloue_image_double(nl2,nc2);
+    
+    R2_reel_spatial = alloue_image_double(nl2,nc2);
+    R2_imag_spatial = alloue_image_double(nl2,nc2);
+    
+    amplitude = alloue_image(nl,nc);
+    phase = alloue_image(nl,nc);
+    orientation = alloue_image(nl,nc);
+
+	////////////////////////////////////////////////////////////////////////////
+	
+	// FFT de im1 -> im2
+    fft(im1_reel, im1_imag, im2_reel, im2_imag, nl2, nc2);
+    
+    // Translation : im2 -> im3
+    fftshift(im2_reel, im2_imag, im3_reel, im3_imag, nl2, nc2);
+    
+  
+    // Transformée de Riesz dans le domaine fréquentiel
+    for (int u=0; u<nl2; u++) {
+    	double nu1 = (double)u-(double)nl2/2.0;
+    	for (int v=0; v<nc2; v++) {
+    		double nu2 = (double)v-(double)nc2/2.0;
+    		double norme = sqrt( (double) (nu1*nu1+nu2*nu2) );
+    		if ( norme == 0) {
+    			R1_reel[u][v] = im3_imag[u][v];
+    			R1_imag[u][v] = -im3_reel[u][v];
+    			R2_reel[u][v] = im3_imag[u][v];
+    			R2_imag[u][v] = -im3_reel[u][v];
+    		} else {
+    			R1_reel[u][v] = ((double) (-nu1*im3_imag[u][v])  ) / norme;
+    			R1_imag[u][v] = ((double) (nu1*im3_reel[u][v]) ) / norme;
+    			R2_reel[u][v] = ((double) (-nu2*im3_imag[u][v])  ) / norme;
+    			R2_imag[u][v] = ((double) (nu2*im3_reel[u][v]) ) / norme;
+    		}
+    	}
+    }
+    
+    // Translation
+    fftshift(R1_reel, R1_imag, R1_reel_shift, R1_imag_shift, nl2, nc2);
+    fftshift(R2_reel, R2_imag, R2_reel_shift, R2_imag_shift, nl2, nc2);
+    
+    // IFFT
+    ifft(R1_reel_shift, R1_imag_shift, R1_reel_spatial, R1_imag_spatial, nl2, nc2);
+    ifft(R2_reel_shift, R2_imag_shift, R2_reel_spatial, R2_imag_spatial, nl2, nc2);
+    
+    ////////////////////////////////////////////////////////////////////////////
+    
+    // Retour à des char
+	res1 = imdouble2uchar(R1_reel_spatial,nl2,nc2);
+	res2 = imdouble2uchar(R2_reel_spatial,nl2,nc2);
+	
+	// Retour à nl et nc
+    res1_bis = crop(res1,0,0,nl,nc); // R1 ou x
+    res2_bis = crop(res2,0,0,nl,nc); // R2 ou y
+    
+    ////////////////////////////////////////////////////////////////////////////
+    
+/*    // Traitement de R1 et R2
+	for (int u=0; u<nl; u++) {
+    	for (int v=0; v<nc; v++) {
+    		if (res1_bis[u][v] <= 127) {
+    			res1_bis[u][v] = 255-res1_bis[u][v];
+    		}
+    		if (res2_bis[u][v] <= 127) {
+    			res2_bis[u][v] = 255-res2_bis[u][v];
+    		}
+    		res1_bis[u][v] -= 50;
+    		res2_bis[u][v] -= 50;
+    	}
+    } */
+    
+    
+    ////////////////////////////////////////////////////////////////////////////
+    
+    // im1 <-> z
+    
+/*
+    // Calcul de A, Phi et Théta
+	for (int u=0; u<nl; u++) {
+    	for (int v=0; v<nc; v++) {
+    		double x = (double) res1_bis[u][v];
+    		double y = (double) res2_bis[u][v];
+    		double z = (double) im1[u][v];
+			amplitude[u][v] = sqrt( x*x+y*y+z*z ) / sqrt(3.0) ;
+			if (x != 0) {
+				phase[u][v] = (double) atan( y / x ) / (3.14/2.0) * 255.0;
+			}
+			if ( amplitude[u][v] != 0) {
+				
+				orientation[u][v] =  (double) acos ( x / (double) sqrt( x*x+y*y+z*z ) ) / (3.14/2.0) * 255;
+			}
+			if (orientation[u][v] <= 127) {
+    			orientation[u][v] = 255-orientation[u][v];
+    		}
+    		orientation[u][v] -= 50;
+		}
+	}
+	*/
+	
+
+    
+    // Ecritures des images dans les fichiers de sortie
+        ecritureimagepgm(av[2], res1_bis, nl, nc);
+	ecritureimagepgm(av[3], res2_bis, nl, nc);
+	/*ecritureimagepgm(av[4], amplitude, nl, nc);
+	ecritureimagepgm(av[5], orientation, nl, nc);
+	ecritureimagepgm(av[6], phase, nl, nc); */
+	
+	// Libération des images
+	libere_image_double(im1_double);
+	libere_image_double(im1_imag);
+	libere_image_double(im2_reel);
+	libere_image_double(im2_imag);
+	libere_image_double(R1_reel);
+	libere_image_double(R1_imag);
+	libere_image_double(R1_reel_spatial);
+	libere_image_double(R1_imag_spatial);
+	libere_image_double(R2_reel);
+	libere_image_double(R2_imag);
+	libere_image_double(R2_reel_spatial);
+	libere_image_double(R2_imag_spatial);
+    libere_image(im1);
+    libere_image(res1);
+    libere_image(res2);
+    libere_image(res1_bis);
+    libere_image(res2_bis);
+    
+    return 0;
+}  

@@ -1,0 +1,90 @@
+// Exercice scilab : gradient en 2D
+
+    // Dimension spatiale
+	d = 10;
+	// Nb de points/pixels sur une dimension
+	N = 512;
+	// Vecteur spatial
+	v = linspace(0,d,N);
+	
+	// Fonction en spatial : f(x) = cos(2*pi*x)
+	for i = 1:N
+		for j = 1:N
+			f(i,j) = cos(2*%pi*v(i)); // dépend uniquement de x
+		end
+	end
+	
+	// Gradient en spatial : deux composantes
+	for i = 1:N
+		for j = 1:N
+			Gx(i,j) = -2.0*%pi*sin(2*%pi*v(i));
+			Gy(i,j) = 0;
+		end
+	end
+	
+	// Calcul du gradient en fréquentiel
+	
+	// FFT
+	f_fourier = fft(f);
+	// Shift
+	for i = 1:(N/2)
+		for j = 1:(N/2)                                 //  ___________________
+		    // Cadre 1 <-> cadre 4                      // |    2    |    4    |
+			inter = f_fourier(i,j);                     // |_________|_________|
+			f_fourier(i,j) = f_fourier(i+N/2,j+N/2);    // |    1    |    3    |
+			f_fourier(i+N/2,j+N/2) = inter;             // |_________|_________|
+			// Cadre 2 <-> cadre 3
+			inter = f_fourier(i+N/2,j);
+			f_fourier(i+N/2,j) = f_fourier(i,j+N/2);
+			f_fourier(i,j+N/2) = inter;
+		end
+	end
+	// Gradient en fréquentiel
+	for i = 1:N
+		for j = 1:N
+			Gf_x_essai(i,j) = 2*%i*%pi*((i-N/2)/d)*f_fourier(i,j);
+			Gf_y_essai(i,j) = 2*%i*%pi*((j-N/2)/d)*f_fourier(i,j);
+		end
+	end
+	// Shift pour les deux composantes du gradient
+	for i = 1:(N/2)
+		for j = 1:(N/2)
+		    // Composante Gx
+			inter = Gf_x_essai(i,j);
+			Gf_x_essai(i,j) = Gf_x_essai(i+N/2,j+N/2);
+			Gf_x_essai(i+N/2,j+N/2) = inter;
+			inter = Gf_x_essai(i+N/2,j);
+			Gf_x_essai(i+N/2,j) = Gf_x_essai(i,j+N/2);
+			Gf_x_essai(i,j+N/2) = inter;
+            // Composante Gy			
+			inter = Gf_y_essai(i,j);
+			Gf_y_essai(i,j) = Gf_y_essai(i+N/2,j+N/2);
+			Gf_y_essai(i+N/2,j+N/2) = inter;
+			inter = Gf_y_essai(i+N/2,j);
+			Gf_y_essai(i+N/2,j) = Gf_y_essai(i,j+N/2);
+			Gf_y_essai(i,j+N/2) = inter;
+		end
+	end
+	// IFFT
+	Gx_essai = ifft(Gf_x_essai);
+	Gy_essai = ifft(Gf_y_essai);
+
+    // Comparaison de Gx_essai et Gx
+	for i = 1:N
+		for j = 1:N
+		    diff = abs( real(Gx_essai(i,j))-Gx(i,j) );
+			if ((diff) > 0.2)
+	            printf("ERREUR\n")
+	        end
+		end
+	end
+	
+	// Comparaison de Gy_essai et Gy
+	for i = 1:N
+		for j = 1:N
+		    diff = abs( real(Gy_essai(i,j))-Gy(i,j) );
+			if ((diff) > 0.2)
+	            printf("ERREUR\n")
+	        end
+		end
+	end

@@ -1,0 +1,48 @@
+// Exercice scilab : dérivée en 1D
+
+    // Dimension spatiale
+	d = 10;
+	// Nb de points/pixels
+	N = 1000;
+	// Vecteur spatial
+	v = 0.01:0.01:d;
+	
+	// Fonction en spatial : f(x) = cos(2*pi*x)
+	for i = 1:N
+		f(i) = cos(2*%pi*v(i));
+	end
+	
+	// Dérivée en spatial : g(x) = -2*pi*sin(2*pi*x)
+	for i = 1:N
+		g(i) = -2*3.14*sin(2*3.14*v(i));
+	end
+	
+	// Dessin 1D
+	plot2d(v,g,style=5) // rouge
+	plot2d(v,f,style=3) // vert
+	
+	// Calcul de la dérivée en fréquentiel
+	
+	// FFT
+	f_fourier = fft(f);
+	// Shift
+	for i = 1:(N/2)
+		inter = f_fourier(i);
+		f_fourier(i) = f_fourier(i+N/2);
+		f_fourier(i+N/2) = inter;
+	end
+    // Derivee dans le domaine fréquentiel
+	for i = 1:N
+		f_fourier(i) = 2*%i*%pi*((i-N/2)/d)*f_fourier(i);
+	end
+	// Shift
+	for i = 1:(N/2)
+		inter = f_fourier(i);
+		f_fourier(i) = f_fourier(i+N/2);
+		f_fourier(i+N/2) = inter;
+	end
+	// IFFT
+	calcul_g = ifft(f_fourier);
+	
+	// Dessin de calcul_g : recouvre la courbe de g
+	plot2d(v,calcul_g,style=4) // bleu clair

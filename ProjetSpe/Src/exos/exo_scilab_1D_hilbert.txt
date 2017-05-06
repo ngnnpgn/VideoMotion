@@ -1,0 +1,59 @@
+// Exercice scilab : hilbert en 1D
+
+    // Dimension spatiale
+	d = 100;
+	// Nb de points/pixels
+	N = 10000;
+	// Vecteur spatial
+	v = 0.01:0.01:d;
+	
+	// Fonction en spatial : f = escalier
+	for i = 1:N
+	    if (v(i) < 49) then
+	        f(i) = 0;
+	    elseif (v(i) > 51) then
+	        f(i) = 1;
+	    else
+	        f(i) = 0.5*(v(i)-49);
+	    end
+	end
+	
+	// Dessin 1D
+	plot2d(v,f,style=3) // vert
+	
+	// Calcul de la transformée de Hilbert
+	
+	// FFT
+	f_fourier = fft(f);
+	//plot2d(v,f_fourier,style=5,rect=[0,-5,10,10]);
+	
+	// Shift
+	for i = 1:(N/2)
+		inter = f_fourier(i);
+		f_fourier(i) = f_fourier(i+N/2);
+		f_fourier(i+N/2) = inter;
+	end
+	//plot2d(v,f_fourier,style=6,rect=[0,-5,10,10]);
+	
+	
+    // Hilbert
+	for i = 1:N
+	    frequence = ((i-N/2)/d);
+	    if (frequence <> 0)
+		    f_fourier(i) = - %i * frequence / abs(frequence) * f_fourier(i);
+		end
+	end
+	//plot2d(v,f_fourier,style=7)
+	
+	// Shift
+	for i = 1:(N/2)
+		inter = f_fourier(i);
+		f_fourier(i) = f_fourier(i+N/2);
+		f_fourier(i+N/2) = inter;
+	end
+	
+	// IFFT
+	g = ifft(f_fourier);
+	
+	// Dessin de g
+	plot2d(v,g,style=7)
